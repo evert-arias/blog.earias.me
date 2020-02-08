@@ -4,7 +4,22 @@ require(`dotenv`).config({
 
 module.exports = {
   siteMetadata: {
-    siteTitleAlt: `Minimal Blog - Gatsby Theme`,
+    siteTitle: `Evert Arias`,
+    // Default title of the page
+    siteTitleAlt: `Evert Arias' blog`,
+    // Can be used for e.g. JSONLD
+    siteHeadline: `Evert Arias' blog`,
+    // Will be used to generate absolute URLs for og:image etc.
+    siteUrl: `https://blog.earias.me`,
+    // Used for SEO
+    siteDescription: `My personal blog - Web apps, Embedded Software, Arduino, Android and many other related topics.`,
+    // Will be set on the <html /> tag
+    siteLanguage: `en`,
+    // Used for og:image and must be placed inside the `static` folder
+    siteImage: `/banner.jpg`,
+    // Twitter Handle
+    author: `@evert_arias`,
+    // Links displayed in the header on the right side
   },
   plugins: [
     {
@@ -22,12 +37,12 @@ module.exports = {
         ],
         externalLinks: [
           {
-            name: `Twitter`,
-            url: `https://twitter.com/lekoarts_de`,
+            name: `Github`,
+            url: `https://github.com/evert-arias`,
           },
           {
-            name: `Instagram`,
-            url: `https://www.instagram.com/lekoarts.de/`,
+            name: `Youtube`,
+            url: `https://www.youtube.com/channel/UCbdTIe6YpgJ6bCL7FI16Bcw`,
           },
         ],
       },
