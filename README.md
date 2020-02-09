@@ -1,6 +1,8 @@
-# blog.earias.me
-My personal blog - Web apps, Embedded Software, Arduino, Android and more.
+# My personal blog
+My personal blog - Developed with [gatsby](https://www.gatsbyjs.org/) static site generator.
 
-## License
 
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
+
+## Copyright
+
+[MIT](../LICENSE.md) © [Evert Arias](https://evert-arias.github.io/)
