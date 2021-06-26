@@ -1,0 +1,114 @@
+---
+title: Jitsi-Meet en la red local
+date: 2021-06-26
+description: En este tutorial veremos el auto-hospedaje de Jitsi en la red local completamente offline. 
+tags:
+  - Jitsi-Meet
+  - Red
+banner: ./defence-against-the-dark-arts.jpg
+---
+
+# Jitsi Meet en la red local
+
+[Jitsi](https://github.com/jitsi) es una aplicación de videoconferencia, VoIP, y mensajería instantánea con aplicaciones nativas para iOS y Android, y con soporte para Windows, Linux y Mac OS X a través de la web. Al ser de código abierto brida capacidades de videoconferencia seguras, fáciles de usar y fáciles de auto-hospedar. 
+
+En este tutorial veremos el auto-hospedaje de Jitsi en la red local completamente offline. 
+
+## Requisitos
+
+* [Docker](https://www.docker.com/)
+* [Docker Compose](https://docs.docker.com/compose/)
+
+## Instalar la imagen oficial de Jitsi-Meet en Docker
+
+1. Descargue y extraiga la [última versión](https://github.com/jitsi/docker-jitsi-meet/releases/latest). NO clone el repositorio de git.
+
+2. Cree un archivo `.env` copiando `env.example` y ajuste los siguientes valores:
+
+   |      Variable       |    Valor por defecto     |                        Nuevo valor                         |
+   | :-----------------: | :----------------------: | :--------------------------------------------------------: |
+   |      HTTP_PORT      |           8000           |                           80 **                            |
+   |     HTTPS_PORT      |           8443           |                           443 **                           |
+   |     PUBLIC_URL      | https://meet.example.com |            URL de su dominio, ej: https://v.je             |
+   | DOCKER_HOST_ADDRESS |       192.168.1.1        | IP de la maquina anfitrión donde se esta ejecutando Docker |
+
+   ** Se pueden dejar los puertos por defecto si planeamos utilizar un reverse proxy como [Traefik](https://github.com/traefik/traefik/).
+
+3. Establezca contraseñas seguras en las opciones de la sección de seguridad del archivo .env ejecutando el siguiente script bash:
+
+   ```bash
+   sh ./gen-passwords.sh
+   ```
+
+4. Cree los directorios CONFIG necesarios
+
+   ```bash
+   mkdir -p ~/.jitsi-meet-cfg/{web/letsencrypt,transcripts,prosody/config,prosody/prosody-plugins-custom,jicofo,jvb,jigasi,jibri}
+   ```
+
+5. Ejecute `docker-compose up -d`
+
+A este punto ya se puede acceder a la interfaz de usuario web en **https: // localhost**. 
+
+Al acceder, el navegador dirá que su conexión no es segura y mostrará el error `NET::ERR_CERT_COMMON_NAME_INVALID` debido a que el servidor web de Jitsi-Meet no esta usando un certificado SSL valido y por tanto el navegador no podrá iniciar la aplicación web ni tampoco las aplicaciones móviles podrán acceder. 
+
+Para el correcto funcionamiento del servidor, debemos usar un nombre de dominio con su certificado SSL. Por suerte podemos lograrlo en nuestra red local, sin necesidad de exponer nuestro servidor a Internet.
+
+## DNS 
+
+Podemos asociar un nombre de dominio al IP de nuestro servidor Jitsi-Meet modificando el archivo `hosts` de nuestro router o utilizando un servidor DNS como [Pi-hole](https://pi-hole.net/), si disponemos de un Raspberry pi en nuestra red. Una vez que el IP del servidor este asociado a un nombre de dominio debemos obtener un certificado SSL para el mismo.
+
+## Certificado SSL
+
+Para un dominio de nuestra propiedad, podemos obtener un certificado SSL con [Let's Encrypt](https://letsencrypt.org/es/) y [Certbot](https://certbot.eff.org/), que se encuentran implícitos en Jitsi-Meet. Pero en este caso, como nuestro servidor no se encuentra expuesto a Internet, tendremos que obtener manualmente el certificado para nuestro dominio y copiarlo en el servidor de Jitsi.
+
+#### Generar certificado SSL con Certbot
+
+Para poder generar el certificado SSL en nuestro sistema, debemos [instalar Certbot](https://certbot.eff.org/) siguiendo la guía oficial de instalación para su sistema operativo. A continuación vamos a generar el certificado SSL para nuestro dominio con el siguiente comando:
+
+```bash
+sudo certbot -d MI_DOMINIO --server https://acme-v02.api.letsencrypt.org/directory --manual --preferred-challenges dns certonly
+```
+
+> Si no deseamos pasar por el proceso de obtener el certificado para nuestro dominio, podemos usar el [certificado](https://r.je/tmp/vjecert.zip) que Tom Butler dejó a disposición en su blog: [Guide: Using Let's Encrypt SSL Certificates for a local or network server](https://r.je/guide-lets-encrypt-certificate-for-local-development). Claro, si utilizamos este certificado debemos usar el dominio para el cual se generó: `v.je`, por tanto el IP de nuestro servidor Jitsi-Meet debe estar asociado al dominio `v.je`.
+
+#### Copiar certificado al servidor web
+
+Una vez que tenemos el certificado SSL para nuestro dominio, debemos incluirlo en el servidor web de Jitsi-Meet. Si el certificado lo generamos con [Certbot](https://certbot.eff.org/), encontraremos los archivos del certificado en la siguiente ruta: `/etc/letsencrypt/live/MY_DOMAIN`
+
+```bash
+sudo cp /etc/letsencrypt/live/MI_DOMINIO/fullchain.pem ~/.jitsi-meet-cfg/web/keys/cert.crt
+sudo cp /etc/letsencrypt/live/MI_DOMINIO/privkey.pem ~/.jitsi-meet-cfg/web/keys/cert.key
+```
+
+Si optamos por utilizar el [certificado](https://r.je/tmp/vjecert.zip) de Tom Butler o cualquier otro certificado generado manualmente en otro entorno, debemos cambiar la ruta fuente por la ruta del directorio donde se encuentran localizados los archivos del certificado.
+
+```bash
+sudo cp /SRC/fullchain.pem ~/.jitsi-meet-cfg/web/keys/cert.crt
+sudo cp /SRC/privkey.pem ~/.jitsi-meet-cfg/web/keys/cert.key
+```
+
+Para finalizar, debemos reiniciar el contenedor del servidor web de Jitsi-Meet para que este cargue el nuevo certificado SSL.
+
+#### Renovar certificado SSL
+
+Los certificados Let's Encrypt tienen una validez de 90 días, durante los cuales se puede renovar en cualquier momento.
+
+Para renovar el certificado, lo primero que debemos hacer es ejecutar el comando de Certbot para renovar el mismo.
+
+```bash
+sudo certbot renew --cert-name MI_DOMINIO
+```
+
+Luego copiamos al servidor web los archivos del certificado ya renovado.
+
+```bash
+sudo cp /etc/letsencrypt/live/MI_DOMINIO/fullchain.pem ~/.jitsi-meet-cfg/web/keys/cert.crt
+sudo cp /etc/letsencrypt/live/MI_DOMINIO/privkey.pem ~/.jitsi-meet-cfg/web/keys/cert.key
+```
+
+Por ultimo debemos reiniciar el contenedor del servidor web de Jitsi-Meet para que este cargue el certificado renovado. 
+
+## Copyright
+
+[MIT](https://github.com/evert-arias/EasyButton/blob/LICENSE.md) © [Evert Arias](https://www.earias.me/)
